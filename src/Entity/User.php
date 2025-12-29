@@ -12,25 +12,23 @@ use App\Controller\UserCreateAction;
 use App\Repository\UserRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
+use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ApiResource(
     operations: [
         new GetCollection(),
-        new Post(),
-        new Get(
-            uriTemplate: 'users/my',
-            controller: UserCreateAction::class,
-            name: 'createUser'
-        ),
+        new Post(controller: UserCreateAction::class),
+        new Get(),
+        new Put(),
         new Delete(),
-        new Put()
     ],
     normalizationContext: ['groups' => ['user:read']],
     denormalizationContext: ['groups' => ['user:write']]
 )]
-class User implements PasswordAuthenticatedUserInterface
+class User implements PasswordAuthenticatedUserInterface, UserInterface
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -40,23 +38,34 @@ class User implements PasswordAuthenticatedUserInterface
 
     #[ORM\Column(length: 255)]
     #[Groups(['user:read', 'user:write'])]
+    #[Assert\NotBlank(groups: ['user:write'])]
     private ?string $email = null;
 
     #[ORM\Column(length: 255)]
     #[Groups(['user:write'])]
+    #[Assert\NotBlank(groups: ['user:write'])]
     private ?string $password = null;
 
     #[ORM\Column(length: 255)]
     #[Groups(['user:read', 'user:write'])]
+    #[Assert\NotBlank(groups: ['user:write'])]
     private ?string $fullname = null;
 
     #[ORM\Column(length: 255)]
     #[Groups(['user:read', 'user:write'])]
+    #[Assert\NotBlank(groups: ['user:write'])]
     private ?string $surname = null;
 
     #[ORM\Column]
     #[Groups(['user:read', 'user:write'])]
+    #[Assert\NotBlank(groups: ['user:write'])]
     private ?int $age = null;
+
+    /**
+     * @var list<string>
+     */
+    #[ORM\Column(type: 'json')]
+    private array $roles = [];
 
     public function getId(): ?int
     {
@@ -85,6 +94,36 @@ class User implements PasswordAuthenticatedUserInterface
         $this->password = $password;
 
         return $this;
+    }
+
+    public function getUserIdentifier(): string
+    {
+        return (string) $this->email;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getRoles(): array
+    {
+        $roles = $this->roles;
+        $roles[] = 'ROLE_USER';
+
+        return array_values(array_unique($roles));
+    }
+
+    /**
+     * @param list<string> $roles
+     */
+    public function setRoles(array $roles): static
+    {
+        $this->roles = $roles;
+
+        return $this;
+    }
+
+    public function eraseCredentials(): void
+    {
     }
 
     public function getFullname(): ?string
